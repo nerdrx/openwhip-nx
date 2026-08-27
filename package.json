@@ -1,7 +1,7 @@
 {
-  "name": "openwhip",
-  "version": "1.1.0",
-  "description": "Whip Claude into shape",
+  "name": "openwhip-nx",
+  "version": "1.2.0",
+  "description": "Whip Claude into shape — NX fork for KDE Wayland and the Claude Code desktop app",
   "license": "MIT",
   "main": "main.js",
   "bin": {
@@ -43,13 +43,36 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
-    "pack": "npm pack"
+    "pack": "npm pack",
+    "dist": "electron-builder --linux AppImage"
+  },
+  "build": {
+    "appId": "dev.nerdrx.openwhip-nx",
+    "productName": "OpenWhip NX",
+    "files": [
+      "main.js",
+      "preload.js",
+      "overlay.html",
+      "sounds/**",
+      "icon/**",
+      "assets/**"
+    ],
+    "linux": {
+      "target": "AppImage",
+      "icon": "icon/Template.png",
+      "category": "Utility"
+    },
+    "artifactName": "openwhip-nx-${version}-linux-x86_64.${ext}"
   },
   "dependencies": {
-    "electron": "^33.0.0",
     "koffi": "^2.9.0"
   },
   "allowScripts": {
     "electron@33.4.11": true
-  }
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^26.15.3"
+  },
+  "author": "nerdrx"
 }
