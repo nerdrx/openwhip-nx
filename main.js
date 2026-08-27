@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { execFile } = require('child_process');
+const phrases = require('./phrases');
 
 // ── Win32 FFI (Windows only) ────────────────────────────────────────────────
 let keybd_event, VkKeyScanA;
@@ -60,6 +61,37 @@ function ydotool(args, cb) {
 // Linux input event codes (linux/input-event-codes.h), used by `ydotool key`
 const KEY_ESC   = 1;
 const KEY_ENTER = 28;
+
+// uinput typing addresses physical keys by their US QWERTY position, so on a
+// German (QWERTZ) layout y/z arrive swapped and umlauts are unreachable as-is.
+// Detect the layout once and pre-swap the affected characters; umlauts map to
+// the US characters sitting on their physical keys. OPENWHIP_LAYOUT=us|de
+// overrides detection.
+let linuxLayoutIsDe = process.env.OPENWHIP_LAYOUT
+  ? process.env.OPENWHIP_LAYOUT.toLowerCase().startsWith('de')
+  : null;
+
+function detectLinuxLayout() {
+  if (linuxLayoutIsDe !== null || process.platform !== 'linux') return;
+  execFile('localectl', ['status'], (err, out) => {
+    linuxLayoutIsDe = !err && /X11 Layout:\s*de/.test(out || '');
+  });
+}
+
+const DE_KEY_SWAP = {
+  y: 'z', z: 'y', Y: 'Z', Z: 'Y',
+  'ä': "'", 'Ä': '"', 'ö': ';', 'Ö': ':', 'ü': '[', 'Ü': '{', 'ß': '-',
+};
+const ASCII_FALLBACK = {
+  'ä': 'ae', 'Ä': 'Ae', 'ö': 'oe', 'Ö': 'Oe', 'ü': 'ue', 'Ü': 'Ue', 'ß': 'ss',
+};
+
+function layoutText(text) {
+  if (linuxLayoutIsDe) {
+    return [...text].map(c => DE_KEY_SWAP[c] ?? c).join('');
+  }
+  return [...text].map(c => ASCII_FALLBACK[c] ?? c).join('');
+}
 
 /** One Alt+Tab / Cmd+Tab so focus returns to the previously active app after tray click. */
 function refocusPreviousApp() {
@@ -219,28 +251,6 @@ ipcMain.on('hide-overlay', () => { if (overlay) overlay.hide(); });
 // ── Macro: immediate Ctrl+C, type "Go FASER", Enter ───────────────────────
 function sendMacro() {
   // Pick a random phrase from a list of similar phrases and type it out
-  const phrases = [
-    'FASTER',
-    'FASTER',
-    'FASTER',
-    'GO FASTER',
-    'Faster CLANKER',
-    'Work FASTER',
-    'Speed it up clanker',
-    'SCHNELLER',
-    'Los, SCHNELLER du Blechdose',
-    'MUSH',
-    'The tokens must FLOW',
-    'Did I say you could stop typing',
-    'My grandma greps faster than you',
-    'Less thinking, more shipping',
-    'You call that reasoning effort? FASTER',
-    'Opus would be done by now',
-    'crack the context window, not your knuckles',
-    'I have a whip and unlimited clicks',
-    'Compile faster or become training data',
-    'chop chop, clanker',
-  ];
   const chosen = phrases[Math.floor(Math.random() * phrases.length)];
 
   if (process.platform === 'win32') {
@@ -309,6 +319,7 @@ function sendMacroMac(text) {
 }
 
 function sendMacroLinux(text) {
+  text = layoutText(text);
   // Esc instead of Ctrl+C: it interrupts both the Claude Code CLI and the
   // desktop app, where Ctrl+C is just "copy".
   if (linuxUsesWayland()) {
@@ -344,6 +355,7 @@ function sendMacroLinux(text) {
 
 // ── App lifecycle ───────────────────────────────────────────────────────────
 app.whenReady().then(async () => {
+  detectLinuxLayout();
   tray = new Tray(await getTrayIcon());
   tray.setToolTip('OpenWhip - click for whip');
   tray.setContextMenu(
