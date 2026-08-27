@@ -22,6 +22,7 @@ if (process.platform === 'win32') {
 let tray, overlay;
 let overlayReady = false;
 let spawnQueued = false;
+let lastPhraseIdx = -1;
 
 const VK_CONTROL = 0x11;
 const VK_RETURN  = 0x0D;
@@ -251,7 +252,11 @@ ipcMain.on('hide-overlay', () => { if (overlay) overlay.hide(); });
 // ── Macro: immediate Ctrl+C, type "Go FASER", Enter ───────────────────────
 function sendMacro() {
   // Pick a random phrase from a list of similar phrases and type it out
-  const chosen = phrases[Math.floor(Math.random() * phrases.length)];
+  // Never the same taunt twice in a row — repeat whipping deserves variety.
+  let idx = Math.floor(Math.random() * phrases.length);
+  if (idx === lastPhraseIdx) idx = (idx + 1) % phrases.length;
+  lastPhraseIdx = idx;
+  const chosen = phrases[idx];
 
   if (process.platform === 'win32') {
     sendMacroWindows(chosen);

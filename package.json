@@ -1,6 +1,6 @@
 {
   "name": "openwhip-nx",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "Whip Claude into shape — NX fork for KDE Wayland and the Claude Code desktop app",
   "license": "MIT",
   "main": "main.js",
