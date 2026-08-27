@@ -1,0 +1,9 @@
+[Unit]
+Description=ydotool daemon (uinput keyboard injection for OpenWhip)
+
+[Service]
+ExecStart=/usr/bin/ydotoold --socket-path=/run/ydotoold.sock --socket-own=1000:1000
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
