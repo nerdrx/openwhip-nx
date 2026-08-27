@@ -48,5 +48,8 @@
   "dependencies": {
     "electron": "^33.0.0",
     "koffi": "^2.9.0"
+  },
+  "allowScripts": {
+    "electron@33.4.11": true
   }
 }

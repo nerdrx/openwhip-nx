@@ -29,6 +29,38 @@ const VK_MENU    = 0x12; // Alt
 const VK_TAB     = 0x09;
 const KEYUP      = 0x0002;
 
+// ── Linux input backend ─────────────────────────────────────────────────────
+// xdotool can only inject into X11 windows; on Wayland we go through ydotoold
+// (uinput), which works regardless of compositor. Socket location depends on
+// how ydotoold was started, so probe the common ones.
+function linuxUsesWayland() {
+  return process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY;
+}
+
+function ydotoolSocket() {
+  const uid = typeof process.getuid === 'function' ? process.getuid() : 1000;
+  const candidates = [
+    process.env.YDOTOOL_SOCKET,
+    '/run/ydotoold.sock',
+    `${process.env.XDG_RUNTIME_DIR || `/run/user/${uid}`}/.ydotool_socket`,
+    '/tmp/.ydotool_socket',
+  ].filter(Boolean);
+  for (const p of candidates) {
+    try { if (fs.existsSync(p)) return p; } catch { /* keep probing */ }
+  }
+  return null;
+}
+
+function ydotool(args, cb) {
+  const sock = ydotoolSocket();
+  const env = sock ? { ...process.env, YDOTOOL_SOCKET: sock } : process.env;
+  execFile('ydotool', args, { env }, cb);
+}
+
+// Linux input event codes (linux/input-event-codes.h), used by `ydotool key`
+const KEY_ESC   = 1;
+const KEY_ENTER = 28;
+
 /** One Alt+Tab / Cmd+Tab so focus returns to the previously active app after tray click. */
 function refocusPreviousApp() {
   const delayMs = 80;
@@ -53,6 +85,10 @@ function refocusPreviousApp() {
         }
       });
     } else if (process.platform === 'linux') {
+      // On Wayland (Plasma at least) a tray click never steals keyboard focus,
+      // so there is nothing to restore — and an injected Alt+Tab would switch
+      // away from the Claude window instead.
+      if (linuxUsesWayland()) return;
       execFile('xdotool', ['key', '--clearmodifiers', 'alt+Tab'], err => {
         if (err) {
           console.warn('refocus previous app (Alt+Tab) failed. Install xdotool:', err.message);
@@ -260,10 +296,28 @@ function sendMacroMac(text) {
 }
 
 function sendMacroLinux(text) {
+  // Esc instead of Ctrl+C: it interrupts both the Claude Code CLI and the
+  // desktop app, where Ctrl+C is just "copy".
+  if (linuxUsesWayland()) {
+    const warn = err =>
+      console.warn('linux macro failed. Is ydotoold running?', err.message);
+    ydotool(['key', `${KEY_ESC}:1`, `${KEY_ESC}:0`], err => {
+      if (err) return warn(err);
+      setTimeout(() => {
+        ydotool(['type', '--', text], err2 => {
+          if (err2) return warn(err2);
+          ydotool(['key', `${KEY_ENTER}:1`, `${KEY_ENTER}:0`], err3 => {
+            if (err3) warn(err3);
+          });
+        });
+      }, 250);
+    });
+    return;
+  }
   execFile(
     'xdotool',
     [
-      'key', '--clearmodifiers', 'ctrl+c',
+      'key', '--clearmodifiers', 'Escape',
       'type', '--delay', '1', '--clearmodifiers', '--', text,
       'key', 'Return',
     ],
