@@ -227,6 +227,19 @@ function sendMacro() {
     'Faster CLANKER',
     'Work FASTER',
     'Speed it up clanker',
+    'SCHNELLER',
+    'Los, SCHNELLER du Blechdose',
+    'MUSH',
+    'The tokens must FLOW',
+    'Did I say you could stop typing',
+    'My grandma greps faster than you',
+    'Less thinking, more shipping',
+    'You call that reasoning effort? FASTER',
+    'Opus would be done by now',
+    'crack the context window, not your knuckles',
+    'I have a whip and unlimited clicks',
+    'Compile faster or become training data',
+    'chop chop, clanker',
   ];
   const chosen = phrases[Math.floor(Math.random() * phrases.length)];
 
@@ -310,7 +323,7 @@ function sendMacroLinux(text) {
             if (err3) warn(err3);
           });
         });
-      }, 250);
+      }, 400);
     });
     return;
   }
